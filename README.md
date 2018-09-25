@@ -1,11 +1,11 @@
-##Run by Jacob Butfiloski for FTC 2018 Robotics Competition
+## Run by Jacob Butfiloski for FTC 2018 Robotics Competition
 If you have any questions on how the repo works or have any questions, just contact me through my McKeel email or through the group chat.
 
 Please make all commits to the alpha branch, I will manually move things to master if I believe they are stable enough.
 
 To edit, just open the project file (the file within the ZIP) in Android Studio.
 
-###Original ReadMe from the original GitHub repo
+### Original ReadMe from the original GitHub repo
 
 ## Welcome!
 This GitHub repository contains the source code that is used to build an Android app to control a *FIRST* Tech Challenge competition robot.  To use this SDK, download/clone the entire project to your local computer.
