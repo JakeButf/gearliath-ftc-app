@@ -29,4 +29,12 @@ public class Vector3
         identifier[1] = 0;
         identifier[2] = 0;
     }
+
+    public float[] Add(Vector3 otherVector)
+    {
+        float[] otherIdentifier = otherVector.Value();
+        identifier[0] += otherIdentifier[0];
+        identifier[1] += otherIdentifier[1];
+        identifier[2] += otherIdentifier[2];
+    }
 }
