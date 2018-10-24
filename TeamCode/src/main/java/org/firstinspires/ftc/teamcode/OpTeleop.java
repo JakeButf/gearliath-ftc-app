@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
@@ -25,12 +26,13 @@ public class OpTeleop extends OpMode
     private DcMotor rightMotorFront = null;
     private DcMotor leftMotorBack = null;
     private DcMotor rightMotorBack = null;
+    private DcMotor hookMotor = null;
     private DcMotor armMotor = null;
 
-    private Servo armServo = null;
-    private final double _maxArmServoPos = 0.0;
-    private final double _minArmServoPos = 1.0;
-    private double armServoPosition = (_maxArmServoPos - _minArmServoPos);
+    private Servo beaconServo = null;
+    private final double _maxServoPos = 0.0;
+    private final double _minServoPos = 1.0;
+    //private double armServoPosition = (_maxArmServoPos - _minArmServoPos);
     private boolean armClosed = false;
     //endregion
     //region GLOBAL VARIABLES
@@ -57,19 +59,23 @@ public class OpTeleop extends OpMode
         rightMotorFront = hardwareMap.get(DcMotor.class, "right_motor_front");
         leftMotorBack = hardwareMap.get(DcMotor.class, "left_motor_back");
         rightMotorBack = hardwareMap.get(DcMotor.class, "right_motor_back");
+
+        //hookMotor = hardwareMap.get(DcMotor.class, "hook_motor");
         //endregion
         //region SERVOS
-
+        beaconServo = hardwareMap.get(Servo.class, "beacon_servo");
         //endregion
         //region MOTOR DIRECTION SETTING
         leftMotorFront .setDirection(DcMotor.Direction.REVERSE);
-        leftMotorBack  .setDirection(DcMotor.Direction.FORWARD);
-        rightMotorFront.setDirection(DcMotor.Direction.REVERSE);
+        leftMotorBack  .setDirection(DcMotor.Direction.REVERSE);
+        rightMotorFront.setDirection(DcMotor.Direction.FORWARD);
         rightMotorBack .setDirection(DcMotor.Direction.FORWARD);
+
+        //hookMotor      .setDirection(DcMotorSimple.Direction.FORWARD);
         //endregion
         //region DRIVE TYPE DEFINITION
-        DriveMode  = 0;
-        DriveMode2 = 1;
+        DriveMode  = 1;
+        DriveMode2 = 0;
         //endregion
         telemetry.addData("Status", "Initialized"); //Initialization Complete.
     }
@@ -89,6 +95,42 @@ public class OpTeleop extends OpMode
     }
     //endregion
     //region LOOP
+    private void ToggleServo(Servo servo)
+    {
+        //local vars
+        double localMax = _maxServoPos;
+        double localMin = _minServoPos;
+
+        if(servo.getPosition() == localMin)
+        {
+            servo.setPosition(localMax);
+        } else if(servo.getPosition() == localMax) {
+            servo.setPosition(localMin);
+        } else
+        {
+            throw new RuntimeException("Servo Position is not at max or min.");
+        }
+    }
+
+    boolean hookExtended = false;
+    private void ToggleHook(DcMotor motor, double power)
+    {
+        int time = 0;
+        int maxTime = 200;
+
+        while(time < maxTime)
+        {
+            if(hookExtended)
+            {
+                motor.setPower(-power);
+            } else {
+                motor.setPower(power);
+            }
+            time++;
+        }
+        motor.setPower(0.0);
+        hookExtended = !hookExtended;
+    }
     @Override
     public void loop()
     {
@@ -126,6 +168,7 @@ public class OpTeleop extends OpMode
         double armPower = 0.0;
         final double maxStrengthMod = 0.3;
         double strengthModifier = 0.0;
+        boolean moveServo = false;
 
         switch(DriveMode2)
         {
@@ -135,7 +178,13 @@ public class OpTeleop extends OpMode
             case 0: //One Button One Stick
                 strengthModifier = (gamepad2.a) ? 1 : maxStrengthMod;
                 armPower = gamepad2.left_stick_y * strengthModifier;
-                armServoPosition = (gamepad2.left_bumper) ? _maxArmServoPos : _minArmServoPos;
+
+                if(gamepad2.a)
+                {
+                    moveServo = true;
+                } else {
+                    moveServo = false;
+                }
                 break;
         }
         //endregion
@@ -148,6 +197,12 @@ public class OpTeleop extends OpMode
             leftMotorBack.setPower(leftPower);
             rightMotorBack.setPower(rightPower);
 
+            //hookMotor.setPower(armPower);
+
+            if(gamepad1.a)
+            {
+                ToggleServo(beaconServo);
+            }
             //Driver 2
             telemetry.addData("Status", "Run Time: " + runtime.toString());
             telemetry.addData("Driver 1 Motors", "left (%.2f), right (%.2f), arm (%.2f)", leftPower, rightPower, armPower);
