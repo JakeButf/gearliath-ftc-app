@@ -4,7 +4,7 @@ package org.firstinspires.ftc.teamcode;
 import java.util.ArrayList;
 import java.util.List;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
-import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
@@ -14,7 +14,7 @@ import com.qualcomm.robotcore.util.Range;
 import org.firstinspires.ftc.teamcode.Main.Vector3;
 //endregion
 
-//@TeleOp(name="Test Autonomous", group="Linear Opmode")
+@Autonomous(name="Main" + " Autonomous", group="Linear Opmode")
 public class OpAutonomous extends OpMode
 {
     //region PRIVATE VARIABLES
@@ -32,7 +32,7 @@ public class OpAutonomous extends OpMode
     private double armServoPosition = (_maxServoPos - _minServoPos);
     private boolean armClosed = false;
 
-    private boolean[] modes = new boolean[] { };
+    private boolean[] tasks = new boolean[] { };
     //endregion
     //region INITIALIZATION
     /*
@@ -45,14 +45,21 @@ public class OpAutonomous extends OpMode
         leftMotorBack   = hardwareMap.get(DcMotor.class, "left_motor_back");
         rightMotorFront = hardwareMap.get(DcMotor.class, "right_motor_front");
         rightMotorBack  = hardwareMap.get(DcMotor.class, "right_motor_back");
-        hookMotor       = hardwareMap.get(DcMotor.class, "hook_motor");
+        hookMotor       = hardwareMap.get(DcMotor.class, "actuator_motor");
+
+        //Setting Run Mode
+        DcMotor[] motorArr = new DcMotor[] { leftMotorFront, leftMotorBack, rightMotorFront, rightMotorBack};
+        for(DcMotor d : motorArr)
+        {
+            d.setMode(DcMotor.RunMode.RUN_TO_POSITION); //1120 ticks per rotation
+        }
 
         depoServo       = hardwareMap.get(Servo.class, "depo_servo");
         //endregion
         //region MOTOR DIRECTION SETTING
         leftMotorBack.setDirection(DcMotorSimple.Direction.FORWARD);
-        leftMotorFront.setDirection(DcMotorSimple.Direction.REVERSE);
-        rightMotorBack.setDirection(DcMotorSimple.Direction.FORWARD);
+        leftMotorFront.setDirection(DcMotorSimple.Direction.FORWARD);
+        rightMotorBack.setDirection(DcMotorSimple.Direction.REVERSE);
         rightMotorFront.setDirection(DcMotorSimple.Direction.REVERSE);
         hookMotor.setDirection(DcMotorSimple.Direction.FORWARD);
         //endregion
@@ -68,23 +75,38 @@ public class OpAutonomous extends OpMode
     public void init_loop()
     {
         //region MODES
-        if(gamepad1.dpad_up) //Mode One
+        if(gamepad1.dpad_up) //Task One
         {
-            modes[0] = true;
+            tasks[0] = true;
+        }
+
+        if(gamepad1.dpad_right) //Task Two
+        {
+            tasks[1] = true;
+        }
+
+        if(gamepad1.dpad_down) //Task Three
+        {
+            tasks[2] = true;
+        }
+
+        if(gamepad1.dpad_left) //Task Four
+        {
+            tasks[3] = true;
         }
 
         if(gamepad1.back) //reset button
         {
-            for(int i = 0; i < modes.length; i++)
+            for(int i = 0; i < tasks.length; i++)
             {
-                modes[i] = false;
+                tasks[i] = false;
             }
         }
 
         enabledModeString = "";
-        for(int i = 0; i < modes.length; i++)
+        for(int i = 0; i < tasks.length; i++)
         {
-            if(modes[i])
+            if(tasks[i])
             {
                 enabledModeString += i + " ";
             }
@@ -146,20 +168,89 @@ public class OpAutonomous extends OpMode
         hookExtended = !hookExtended;
     }
 
+    public void Move(String direction, double seconds, double power)
+    {
+        ElapsedTime Time = new ElapsedTime();
+        Time.reset();
+
+            if(direction == "right")
+            {
+                rightMotorFront.setPower(power);
+                rightMotorBack.setPower(power);
+            } else if(direction == "left")
+            {
+                leftMotorFront.setPower(power);
+                leftMotorBack.setPower(power);
+            } else if(direction == "straight")
+            {
+                rightMotorFront.setPower(power);
+                rightMotorBack.setPower(power);
+
+                leftMotorFront.setPower(power);
+                leftMotorBack.setPower(power);
+            } else {
+                throw new RuntimeException("Direction is not set to a valid direction");
+            }
+    }
+
     boolean configured = false;
     double startTime = 0.0;
+    ElapsedTime AutTotTime = new ElapsedTime(); //Elapsed time for entire autonomous
+    int state = 0;
+    int tempIter = 0;
+    int[] iter = new int[200];
     @Override
     public void loop() {
         if(!configured)
         {
             startTime = runtime.time();
+            AutTotTime.reset();
+            configured = true;
+            iter[0] = 0;
         }
-        if(modes[0])
+        telemetry.addData("Time", AutTotTime);
+        telemetry.addData("Test", tempIter);
+        switch(state)
         {
-            //TODO: Input mode one code.
-            ToggleServo(this.depoServo);
-            ToggleHook(this.hookMotor, 2.0);
+            case 0: //Drop from hook
+                tempIter++;
+                if(tempIter < 1550)
+                {
+                    hookMotor.setPower(1.0);
+                } else if(tempIter >= 1550) {
+                    hookMotor.setPower(0.0);
+                    tempIter = 0;
+                    state = 1;
+                    break;
+                }
+
+            case 1:
+                iter[0]++;
+                if(iter[0] < 500 && iter[0] >= 100)
+                {
+                    rightMotorFront.setPower(-1.0);
+                    rightMotorBack.setPower(-1.0);
+
+                    leftMotorFront.setPower(-1.0);
+                    leftMotorBack.setPower(-1.0);
+                    telemetry.addData("Hi", "jsdfihsfhusodfhsf");
+                } else if(iter[0] >= 500)
+                {
+                    rightMotorFront.setPower(0.0);
+                    rightMotorBack.setPower(0.0);
+
+                    leftMotorFront.setPower(0.0);
+                    leftMotorBack.setPower(0.0);
+                    iter[0] = 0;
+                    state = 2;
+                    break;
+                }
+                break;
         }
+        //Turns
+        //Move("right", 5.0, 1.0);
+        //Move("straight", 5.0, 1.0);
+        //TODO: Color sensor
 
     }
     //endregion

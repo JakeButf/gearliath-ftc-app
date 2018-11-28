@@ -27,9 +27,13 @@ public class OpTeleop extends OpMode
     private DcMotor leftMotorBack = null;
     private DcMotor rightMotorBack = null;
     private DcMotor hookMotor = null;
+    private DcMotor linearMotor = null;
+    private DcMotor railMotor = null;
+    private DcMotor leftColMotor = null;
     private DcMotor armMotor = null;
 
     private Servo beaconServo = null;
+    private Servo collectionServo = null;
     private final double _maxServoPos = 0.0;
     private final double _minServoPos = 1.0;
     //private double armServoPosition = (_maxArmServoPos - _minArmServoPos);
@@ -59,11 +63,16 @@ public class OpTeleop extends OpMode
         rightMotorFront = hardwareMap.get(DcMotor.class, "right_motor_front");
         leftMotorBack = hardwareMap.get(DcMotor.class, "left_motor_back");
         rightMotorBack = hardwareMap.get(DcMotor.class, "right_motor_back");
+        //linearMotor = hardwareMap.get(DcMotor.class, "slider_motor");
+        railMotor = hardwareMap.get(DcMotor.class, "rail_motor");
+        leftColMotor = hardwareMap.get(DcMotor.class, "left_coll_motor");
 
-        //hookMotor = hardwareMap.get(DcMotor.class, "hook_motor");
+        hookMotor = hardwareMap.get(DcMotor.class, "actuator_motor");
         //endregion
         //region SERVOS
         beaconServo = hardwareMap.get(Servo.class, "beacon_servo");
+        collectionServo = hardwareMap.get(Servo.class, "pinion_servo");
+        //collectionServo = hardwareMap.get(Servo.class, "collection_servo");
         //endregion
         //region MOTOR DIRECTION SETTING
         leftMotorFront .setDirection(DcMotor.Direction.REVERSE);
@@ -165,7 +174,7 @@ public class OpTeleop extends OpMode
         }
         //endregion
         //region DRIVER TWO
-        double armPower = 0.0;
+        double actuatorPower = 0.0;
         final double maxStrengthMod = 0.3;
         double strengthModifier = 0.0;
         boolean moveServo = false;
@@ -175,16 +184,35 @@ public class OpTeleop extends OpMode
             case -1: //Undefined
                 telemetry.addData("Error", "Drive Mode 2 Undefined");
                 break;
-            case 0: //One Button One Stick
-                strengthModifier = (gamepad2.a) ? 1 : maxStrengthMod;
-                armPower = gamepad2.left_stick_y * strengthModifier;
+            case 0:
+                strengthModifier = (gamepad2.a) ? maxStrengthMod : 1;
+                if(gamepad2.left_trigger > 0f)
+                {
+                    actuatorPower = gamepad2.left_trigger * strengthModifier;
+                } else if(gamepad2.right_trigger > 0f)
+                {
+                    actuatorPower = -gamepad2.right_trigger * strengthModifier;
+                } else {
+                    actuatorPower = 0;
+                }
 
                 if(gamepad2.a)
                 {
-                    moveServo = true;
-                } else {
-                    moveServo = false;
+                    railMotor.setPower(1.0);
+                } else if(gamepad2.b)
+                {
+                    railMotor.setPower(-1.0);
                 }
+
+                if(gamepad2.left_bumper)
+                {
+                    leftColMotor.setPower(1.0);
+                } else if(gamepad2.right_bumper){
+                    leftColMotor.setPower(-1.0);
+                } else {
+                    leftColMotor.setPower(0.0);
+                }
+
                 break;
         }
         //endregion
@@ -197,15 +225,10 @@ public class OpTeleop extends OpMode
             leftMotorBack.setPower(leftPower);
             rightMotorBack.setPower(rightPower);
 
-            //hookMotor.setPower(armPower);
-
-            if(gamepad1.a)
-            {
-                ToggleServo(beaconServo);
-            }
+            hookMotor.setPower(actuatorPower);
             //Driver 2
             telemetry.addData("Status", "Run Time: " + runtime.toString());
-            telemetry.addData("Driver 1 Motors", "left (%.2f), right (%.2f), arm (%.2f)", leftPower, rightPower, armPower);
+            telemetry.addData("Driver 1 Motors", "left (%.2f), right (%.2f), actuator (%.2f)", leftPower, rightPower, actuatorPower);
         }
         //endregion
 
