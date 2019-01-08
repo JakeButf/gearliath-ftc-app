@@ -1,10 +1,17 @@
 package org.firstinspires.ftc.teamcode;
 
+import android.graphics.Color;
+
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.hardware.ColorSensor;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
+
+import com.google.gson.annotations.Expose;
+import com.google.gson.annotations.SerializedName;
 
 /**
  * This file illustrates the concept of driving a path based on encoder counts.
@@ -33,52 +40,65 @@ import com.qualcomm.robotcore.util.ElapsedTime;
  * Remove or comment out the @Disabled line to add this opmode to the Driver Station OpMode list
  */
 
-@Autonomous(name="Crater Side Aut", group="Pushbot")
-public class LinearAutonomousTwo extends LinearOpMode {
+@Autonomous(name="Corner Aut", group="Pushbot")
+public class LinearAutonomousTwo extends LinearOpMode
+{
 
     /* Declare OpMode members. */
     //HardwarePushbot         robot   = new HardwarePushbot();   // Use a Pushbot's hardware
-    private ElapsedTime     runtime = new ElapsedTime();
+    private ElapsedTime runtime = new ElapsedTime();
 
-    static final double     COUNTS_PER_MOTOR_REV    = 1440 ;    // eg: TETRIX Motor Encoder
-    static final double     DRIVE_GEAR_REDUCTION    = 2.0 ;     // This is < 1.0 if geared UP
-    static final double     WHEEL_DIAMETER_INCHES   = 4.0 ;     // For figuring circumference
-    static final double     COUNTS_PER_INCH         = (COUNTS_PER_MOTOR_REV * DRIVE_GEAR_REDUCTION) /
+    static final double COUNTS_PER_MOTOR_REV = 1440;    // eg: TETRIX Motor Encoder
+    static final double DRIVE_GEAR_REDUCTION = 2.0;     // This is < 1.0 if geared UP
+    static final double WHEEL_DIAMETER_INCHES = 4.0;     // For figuring circumference
+    static final double COUNTS_PER_INCH = (COUNTS_PER_MOTOR_REV * DRIVE_GEAR_REDUCTION) /
             (WHEEL_DIAMETER_INCHES * 3.1415);
-    static final double     DRIVE_SPEED             = 0.6;
-    static final double     SLOW_SPEED              = 0.3;
-    static final double     TURN_SPEED              = 0.5;
+    static final double DRIVE_SPEED = 0.6;
+    static final double SLOW_SPEED = 0.3;
+    static final double TURN_SPEED = 0.5;
 
     private DcMotor leftMotorFront = null;
     private DcMotor rightMotorFront = null;
     private DcMotor leftMotorBack = null;
     private DcMotor rightMotorBack = null;
-    private DcMotor hookMotor = null;
+    private DcMotor actuatorMotor = null;
+    private DcMotor horizontalRailMotor = null;
+    private DcMotor verticalRailMotor = null;
+    private DcMotor collectionMotor = null;
 
     private Servo beaconServo = null;
     private Servo rackPinionServo = null;
+    private ColorSensor colorSensor = null;
 
     @Override
-    public void runOpMode() {
+    public void runOpMode()
+    {
 
         /*
          * Initialize the drive system variables.
          * The init() method of the hardware class does all the work here
          */
-        leftMotorFront  = hardwareMap.get(DcMotor.class, "left_motor_front");
-        leftMotorBack   = hardwareMap.get(DcMotor.class, "left_motor_back");
+        leftMotorFront = hardwareMap.get(DcMotor.class, "left_motor_front");
         rightMotorFront = hardwareMap.get(DcMotor.class, "right_motor_front");
-        rightMotorBack  = hardwareMap.get(DcMotor.class, "right_motor_back");
-        hookMotor       = hardwareMap.get(DcMotor.class, "actuator_motor");
+        leftMotorBack = hardwareMap.get(DcMotor.class, "left_motor_back");
+        rightMotorBack = hardwareMap.get(DcMotor.class, "right_motor_back");
+        actuatorMotor = hardwareMap.get(DcMotor.class, "actuator_motor");
+        horizontalRailMotor = hardwareMap.get(DcMotor.class, "horizontal_rail_motor");
+        verticalRailMotor = hardwareMap.get(DcMotor.class, "vertical_rail_motor");
+        collectionMotor = hardwareMap.get(DcMotor.class, "collection_motor");
 
         beaconServo = hardwareMap.get(Servo.class, "beacon_servo");
+        colorSensor = hardwareMap.get(ColorSensor.class, "color_sensor");
+
+        rightMotorBack.setDirection(DcMotorSimple.Direction.REVERSE);
+        leftMotorFront.setDirection(DcMotorSimple.Direction.REVERSE);
 
 
         // Send telemetry message to signify robot waiting;
         telemetry.addData("Status", "Resetting Encoders");    //
         telemetry.update();
 
-        leftMotorFront.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        /*leftMotorFront.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         rightMotorFront.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         leftMotorBack.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         rightMotorBack.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
@@ -86,10 +106,10 @@ public class LinearAutonomousTwo extends LinearOpMode {
         leftMotorFront.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         rightMotorFront.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         leftMotorBack.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        rightMotorBack.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        rightMotorBack.setMode(DcMotor.RunMode.RUN_USING_ENCODER);*/
 
         // Send telemetry message to indicate successful Encoder reset
-        telemetry.addData("Path0",  "Starting at %7d :%7d",
+        telemetry.addData("Path0", "Starting at %7d :%7d",
                 leftMotorFront.getCurrentPosition(),
                 rightMotorFront.getCurrentPosition(),
                 leftMotorBack.getCurrentPosition(),
@@ -100,22 +120,26 @@ public class LinearAutonomousTwo extends LinearOpMode {
         // Wait for the game to start (driver presses PLAY)
         waitForStart();
 
-        // Step through each leg of the path,
-        // Note: Reverse movement is obtained by setting a negative distance (not speed)
-        //encoderDrive(DRIVE_SPEED,  48,  48, 5.0);  // S1: Forward 47 Inches with 5 Sec timeout
-        //encoderDrive(TURN_SPEED,   12, -12, 4.0);  // S2: Turn Right 12 Inches with 4 Sec timeout
-        //ToggleActuator();
-        //sleep(1000);
-        //encoderDrive(SLOW_SPEED, -1.5, -1.5, 4.0);  // S3: Reverse 24 Inches with 4 Sec timeout
-        moveTime(-.185, .185, 1.45);
-        //beaconServo.setPosition(Servo.MAX_POSITION);
-        //sleep(1500);
-        //beaconServo.setPosition(Servo.MIN_POSITION);
-        //sleep(1500);
-        //moveTime(-.20, -.20, .5);
-        //moveTime(-.20, -.20, 1.45);
-        //moveTime(-.20, .20, 1.5);
 
+        /*ToggleActuator(); Old (Not Encoders)
+        moveTime(1.0, -1.0, -1.0, 1.0, .5);
+        moveTime(-1.0, -1.0, -1.0, -1.0, 1.15);
+        sleep(1000);
+        moveTime(-1.0, -1.0, 1.0, 1.0, 1.1);
+        Deposit();
+        sleep(800);
+        moveTime(-1.0, -1.0, 1.0, 1.0, .45);
+        sleep(800);
+        moveTime(-1.0, -1.0, -1.0, -1.0, 1.85);
+        */
+
+        //Encoders
+        ToggleActuator();
+        encoderDrive(.5, 1.0, 1.0, 1.0);
+
+
+        //CheckForColor();
+        //moveTime(-.20, -.20, .5);
 
         telemetry.addData("Path", "Complete");
         telemetry.update();
@@ -131,33 +155,35 @@ public class LinearAutonomousTwo extends LinearOpMode {
      */
     public void encoderDrive(double speed,
                              double leftInches, double rightInches,
-                             double timeoutS) {
+                             double timeoutS)
+    {
         int newLeftTarget;
         int newRightTarget;
 
         // Ensure that the opmode is still active
-        if (opModeIsActive()) {
+        if (opModeIsActive())
+        {
 
             // Determine new target position, and pass to motor controller
-            newLeftTarget = leftMotorFront.getCurrentPosition() + (int)(leftInches * COUNTS_PER_INCH);
-            newRightTarget = rightMotorFront.getCurrentPosition() + (int)(rightInches * COUNTS_PER_INCH);
+            newLeftTarget = leftMotorFront.getCurrentPosition() + (int) (leftInches * COUNTS_PER_INCH);
+            newRightTarget = rightMotorFront.getCurrentPosition() + (int) (rightInches * COUNTS_PER_INCH);
             leftMotorFront.setTargetPosition(newLeftTarget);
             rightMotorFront.setTargetPosition(newRightTarget);
-            //leftMotorBack.setTargetPosition(newLeftTarget);
-            //rightMotorBack.setTargetPosition(newRightTarget);
+            leftMotorBack.setTargetPosition(newLeftTarget);
+            rightMotorBack.setTargetPosition(newRightTarget);
 
             // Turn On RUN_TO_POSITION
             leftMotorFront.setMode(DcMotor.RunMode.RUN_TO_POSITION);
             rightMotorFront.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-            //leftMotorBack.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-            //rightMotorBack.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+            leftMotorBack.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+            rightMotorBack.setMode(DcMotor.RunMode.RUN_TO_POSITION);
 
             // reset the timeout time and start motion.
             runtime.reset();
             leftMotorFront.setPower(Math.abs(speed));
             rightMotorFront.setPower(Math.abs(speed));
-            //leftMotorBack.setPower(Math.abs(speed));
-            //rightMotorBack.setPower(Math.abs(speed));
+            leftMotorBack.setPower(Math.abs(speed));
+            rightMotorBack.setPower(Math.abs(speed));
 
             // keep looping while we are still active, and there is time left, and both motors are running.
             // Note: We use (isBusy() && isBusy()) in the loop test, which means that when EITHER motor hits
@@ -167,11 +193,12 @@ public class LinearAutonomousTwo extends LinearOpMode {
             // onto the next step, use (isBusy() || isBusy()) in the loop test.
             while (opModeIsActive() &&
                     (runtime.seconds() < timeoutS) &&
-                    (leftMotorFront.isBusy() && rightMotorFront.isBusy())) {
+                    (leftMotorFront.isBusy() && rightMotorFront.isBusy()))
+            {
 
                 // Display it for the driver.
-                telemetry.addData("Path1",  "Running to %7d :%7d", newLeftTarget,  newRightTarget);
-                telemetry.addData("Path2",  "Running at %7d :%7d",
+                telemetry.addData("Path1", "Running to %7d :%7d", newLeftTarget, newRightTarget);
+                telemetry.addData("Path2", "Running at %7d :%7d",
                         leftMotorFront.getCurrentPosition(),
                         rightMotorFront.getCurrentPosition());
                 telemetry.update();
@@ -180,44 +207,47 @@ public class LinearAutonomousTwo extends LinearOpMode {
             // Stop all motion;
             rightMotorFront.setPower(0);
             leftMotorFront.setPower(0);
-            //rightMotorBack.setPower(0);
-            //leftMotorBack.setPower(0);
+            rightMotorBack.setPower(0);
+            leftMotorBack.setPower(0);
 
 
             // Turn off RUN_TO_POSITION
             leftMotorFront.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
             rightMotorFront.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-            //leftMotorBack.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-            //
-            // rightMotorBack.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-
-            //  sleep(250);   // optional pause after each move
+            leftMotorBack.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+            rightMotorBack.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+            sleep(250);   // optional pause after each move
         }
     }
+
     boolean toggled = false;
+
     public void ToggleActuator()
     {
         ElapsedTime rt = new ElapsedTime();
         rt.reset();
-        hookMotor.setPower(1.0);
+        actuatorMotor.setPower(1.0);
         //runtime.reset();
-        while (opModeIsActive() && (rt.seconds() < 8.18)) {
+        while (opModeIsActive() && (rt.seconds() < 8.35))
+        {
             telemetry.addData("Path", "Leg 1: %2.5f", rt.seconds());
             telemetry.update();
 
         }
-        hookMotor.setPower(0.0);
+        actuatorMotor.setPower(0.0);
+        sleep(100);
     }
-//lbrf
-    public void moveTime(double leftSpeed, double rightSpeed, double duration)
+
+    //lbrf
+    public void moveTime(double leftFrontSpeed, double leftBackSpeed, double rightFrontSpeed, double rightBackSpeed, double duration)
     {
         ElapsedTime rt = new ElapsedTime();
         rt.reset();
-        leftMotorFront.setPower(leftSpeed);
-        rightMotorFront.setPower(rightSpeed); //To go straight, right speed needs to be positve
-        leftMotorBack.setPower(leftSpeed);
-        rightMotorBack.setPower(rightSpeed);
-        while(opModeIsActive() && (rt.seconds() < duration))
+        leftMotorFront.setPower(leftFrontSpeed);
+        rightMotorFront.setPower(rightFrontSpeed); //To go straight, right speed needs to be positve
+        leftMotorBack.setPower(leftBackSpeed);
+        rightMotorBack.setPower(rightBackSpeed);
+        while (opModeIsActive() && (rt.seconds() < duration))
         {
             telemetry.addData("Path", "temp");
             telemetry.update();
@@ -231,6 +261,82 @@ public class LinearAutonomousTwo extends LinearOpMode {
 
     public void Deposit()
     {
+        double start = Servo.MIN_POSITION;
+        double end = Servo.MAX_POSITION;
 
+        beaconServo.setPosition(start);
+
+        while (beaconServo.getPosition() < end)
+        {
+            beaconServo.setPosition(beaconServo.getPosition() + .05);
+        }
     }
+
+    public void CheckForColor()
+    {
+        float[] colors = GetSensorColor();
+
+        if(colors[4] <= 44)
+        {
+            moveTime(1.0, -1.0, -1.0, 1.0, .5);
+            moveTime(-1.0, -1.0, -1.0, -1.0, .25);
+        } else if(colors[4] >= 45)
+        {
+            sleep(200);
+            moveTime(-1.0, 1.0, 1.0, -1.0, .8);
+            moveTime(-1.0, -1.0, -1.0, -1.0, .2);
+            float[] colors2 = GetSensorColor();
+            if(colors2[4] <= 44)
+            {
+                sleep(200);
+                moveTime(1.0, -1.0, -1.0, 1.0, .5);
+                moveTime(-1.0, -1.0, -1.0, -1.0, .25);
+            } else if(colors2[4] >= 45)
+            {
+                sleep(200);
+                moveTime(-1.0, 1.0, 1.0, -1.0, .8);
+                //moveTime(1.0, -1.0, -1.0, 1.0, .5);
+                moveTime(-1.0, -1.0, -1.0, -1.0, .25);
+            }
+        } else {
+            telemetry.addData("Error", "Ball or Cube not found");
+        }
+    }
+
+    public float[] GetSensorColor()
+    {
+        float[] HSV = {0F, 0F, 0F};
+        Color.RGBToHSV((colorSensor.red() * 255),
+                (colorSensor.green() * 255),
+                (colorSensor.blue() * 255),
+                HSV);
+        return new float[]  {/*Red*/  colorSensor.red(),
+                /*Green*/colorSensor.green(),
+                /*Blue*/ colorSensor.blue(),
+                /*Alpha*/colorSensor.alpha(),
+                /*Hue*/  HSV[0]};
+    }
+
+    /*public static void deserialize() {
+        Command c = new Command();
+
+        ObjectMapper mapper = new ObjectMapper();
+
+        File file = new File("artist.json");
+        try {
+            // Serialize Java object info JSON file.
+            mapper.writeValue(file, artist);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        try {
+            // Deserialize JSON file into Java object.
+            Command c = mapper.readValue(file, Command.class);
+            System.out.println("newArtist.getId() = " + newArtist.getId());
+            System.out.println("newArtist.getName() = " + newArtist.getName());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }*/
 }
