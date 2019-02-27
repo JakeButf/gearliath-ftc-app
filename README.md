@@ -1,3 +1,5 @@
+Since the FTC season is over, this repository will no longer be updated or maintained. There will be an entirely new repo next season.
+
 ## Run by Jacob Butfiloski for FTC 2018 Robotics Competition
 If you have any questions on how the repo works or have any questions, just contact me through my McKeel email or through the group chat.
 
